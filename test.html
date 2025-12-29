@@ -2,130 +2,167 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fixed 1-to-1 Secure Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Chat (E2EE)</title>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
-<style>
-    /* पूरे पेज की सेटिंग */
-    body { 
-        font-family: 'Segoe UI', sans-serif; 
-        margin: 0; 
-        padding: 0; 
-        background-color: #e5ddd5; /* WhatsApp जैसा बैकग्राउंड */
-        display: flex;
-        justify-content: center;
-        height: 100vh;
-    }
 
-    /* मेन चैट कंटेनर */
-    .container { 
-        width: 100%; 
-        max-width: 600px; /* कंप्यूटर पर ज्यादा चौड़ा नहीं होगा */
-        background: white; 
-        display: flex; 
-        flex-direction: column;
-        height: 100%; 
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
+    <style>
+        /* Mobile-First Design Styles */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            padding: 0; 
+            background-color: #e5ddd5; 
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
 
-    h2 { 
-        text-align: center; 
-        padding: 15px; 
-        margin: 0; 
-        background-color: #075e54; 
-        color: white; 
-        font-size: 1.2rem;
-    }
+        .container { 
+            width: 100%; 
+            max-width: 600px; /* PC पर बहुत चौड़ा नहीं होगा */
+            background: white; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            position: relative;
+        }
 
-    /* लॉगिन और इनपुट एरिया */
-    #loginDiv, #chatDiv { 
-        padding: 20px; 
-        display: flex; 
-        flex-direction: column; 
-        height: 100%;
-    }
+        header {
+            background-color: #075e54;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-    /* चैट बॉक्स (मैसेज एरिया) */
-    #chatBox { 
-        flex-grow: 1; 
-        border: none; 
-        background-color: #f0f0f0; 
-        padding: 10px; 
-        font-size: 16px; 
-        resize: none; 
-        margin-bottom: 10px;
-        border-radius: 8px;
-    }
+        #loginDiv, #chatDiv { 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%;
+            box-sizing: border-box;
+        }
 
-    /* इनपुट और बटन */
-    .input-group { display: flex; gap: 10px; margin-top: 10px; }
-    
-    input[type="text"] { 
-        padding: 12px; 
-        border: 1px solid #ccc; 
-        border-radius: 20px; 
-        flex-grow: 1; 
-        outline: none;
-    }
+        /* चैट एरिया */
+        #chatBox { 
+            flex-grow: 1; 
+            border: none; 
+            background-color: #f0f0f0; 
+            background-image: radial-gradient(#ddd 1px, transparent 1px);
+            background-size: 20px 20px;
+            padding: 15px; 
+            font-size: 16px; 
+            line-height: 1.5;
+            resize: none; 
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow-y: auto;
+            color: #333;
+        }
 
-    button { 
-        padding: 10px 20px; 
-        background-color: #25d366; 
-        color: white; 
-        border: none; 
-        border-radius: 20px; 
-        cursor: pointer; 
-        font-weight: bold;
-    }
+        /* इनपुट बॉक्स स्टाइल */
+        input[type="text"] { 
+            padding: 12px 15px; 
+            border: 1px solid #ccc; 
+            border-radius: 25px; 
+            outline: none;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
 
-    button:hover { background-color: #128c7e; }
+        input:focus { border-color: #075e54; }
 
-    .info { 
-        background: #e1f5fe; 
-        padding: 10px; 
-        border-radius: 5px; 
-        font-size: 0.9em; 
-        margin-bottom: 10px; 
-        word-break: break-all; /* ID मोबाइल स्क्रीन से बाहर न जाए */
-    }
-</style>
+        /* बटन स्टाइल */
+        button { 
+            padding: 12px; 
+            background-color: #25d366; 
+            color: white; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 16px;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #128c7e; }
+        
+        .small-btn { width: auto; padding: 8px 20px; margin-top: 5px; }
+
+        .info-box {
+            background-color: #dcf8c6;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            text-align: center;
+            border: 1px solid #ccebb6;
+        }
+
+        .id-text {
+            font-family: monospace;
+            background: #fff;
+            padding: 3px 6px;
+            border-radius: 4px;
+            user-select: all; /* क्लिक करते ही सेलेक्ट हो जाएगा */
+            font-weight: bold;
+            color: #075e54;
+        }
+
+        /* जब चैट स्क्रीन दिखे तो लॉगिन छुप जाए */
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>1-to-1 Secure Chat (E2EE)</h2>
+    <header>Secure Chat (E2EE)</header>
 
     <div id="loginDiv">
-        <p>This chat uses TweetNaCl.js for client-side encryption.</p>
-        <input type="text" id="username" placeholder="Enter your display name">
-        <button onclick="login()">Generate Keys & Login</button>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+            <h3 style="text-align: center; color: #444;">Welcome</h3>
+            <p style="text-align: center; color: #777;">Enter your name to generate secure keys.</p>
+            
+            <input type="text" id="username" placeholder="Display Name (e.g. Rahul)">
+            <button onclick="login()">Start Chatting</button>
+        </div>
     </div>
 
-    <div id="chatDiv" style="display:none;">
-        <div class="info">
-            <strong>Your ID:</strong> <span id="myId" style="color:blue"></span><br>
-            Share this ID with your friend to connect.
-        </div>
-        
-        <div style="margin-bottom: 15px;">
-            <input type="text" id="partnerId" placeholder="Paste Partner's ID here">
-            <button onclick="connectPartner()">Connect</button>
+    <div id="chatDiv" class="hidden">
+        <div class="info-box">
+            Your ID: <span id="myId" class="id-text">...</span>
+            <br><span style="font-size: 12px; color: #555;">(Share this ID with your friend)</span>
         </div>
 
-        <textarea id="chatBox" readonly></textarea><br>
+        <div id="connectionArea" style="margin-bottom: 10px;">
+            <input type="text" id="partnerId" placeholder="Paste Friend's ID here">
+            <button class="small-btn" style="background-color: #34b7f1;" onclick="connectPartner()">Connect</button>
+        </div>
+
+        <textarea id="chatBox" readonly placeholder="Waiting for connection..."></textarea>
         
-        <div style="display:flex;">
-            <input type="text" id="messageInput" placeholder="Type a secret message..." style="flex-grow:1;">
-            <button onclick="sendMessage()">Send</button>
+        <div style="display:flex; gap: 10px;">
+            <input type="text" id="messageInput" placeholder="Type a message..." style="margin-bottom:0;">
+            <button class="small-btn" style="width: 80px; margin-top:0;" onclick="sendMessage()">Send</button>
         </div>
     </div>
 </div>
 
 <script>
-    // -------- 1. CONFIGURATION --------
-    // REPLACE THESE VALUES WITH YOUR FIREBASE CONSOLE CONFIG
+    // ==========================================
+    // 1. FIREBASE CONFIGURATION (यहाँ पेस्ट करें)
+    // ==========================================
     const firebaseConfig = {
     apiKey: "AIzaSyAbCj12bi0okTOs_Goi-HikR7bWwtYvvBs",
     authDomain: "fast-chat-app-5b4f0.firebaseapp.com",
@@ -134,6 +171,7 @@
     messagingSenderId: "1094615740322",
     appId: "1:1094615740322:web:6b882419efefb1dd5a8cfb"
   };
+    // ==========================================
 
     // Initialize Firebase
     if (!firebase.apps.length) {
@@ -141,67 +179,69 @@
     }
     const db = firebase.database();
 
-    // -------- 2. CRYPTO SETUP --------
+    // Variables
     let username = "";
     let myId = "";
     let partnerId = "";
     
-    // Generate ephemeral keys (Curve25519)
+    // Generate Keys (Curve25519)
     const keyPair = nacl.box.keyPair();
     const privateKey = keyPair.secretKey;
     const publicKey = keyPair.publicKey;
 
-    // -------- 3. FUNCTIONS --------
-
+    // --- LOGIN FUNCTION ---
     function login() {
         username = document.getElementById("username").value.trim();
-        if(!username) { alert("Enter name"); return; }
+        if(!username) { alert("Please enter your name"); return; }
         
-        // Create a random ID
+        // Generate random ID
         myId = "USER-" + Math.floor(Math.random()*1000000);
         document.getElementById("myId").innerText = myId;
         
-        document.getElementById("loginDiv").style.display = "none";
-        document.getElementById("chatDiv").style.display = "block";
+        // UI Switch
+        document.getElementById("loginDiv").classList.add("hidden");
+        document.getElementById("chatDiv").classList.remove("hidden");
 
-        // Store public key in DB so others can find it
+        // Upload Public Key
         db.ref("users/" + myId).set({
             username: username,
             publicKey: nacl.util.encodeBase64(publicKey)
         });
 
-        // Start listening for incoming messages immediately
         listenMessages();
     }
 
+    // --- CONNECT FUNCTION ---
     function connectPartner() {
-        partnerId = document.getElementById("partnerId").value.trim();
-        if(!partnerId) { alert("Enter partner ID"); return; }
-        alert("Target set to: " + partnerId + ". You can now message them.");
+        const pid = document.getElementById("partnerId").value.trim();
+        if(!pid) { alert("Enter Partner ID"); return; }
+        if(pid === myId) { alert("You cannot chat with yourself!"); return; }
+        
+        partnerId = pid;
+        document.getElementById("connectionArea").style.display = "none"; // Hide connection box after connect
+        document.getElementById("chatBox").placeholder = "Connected to " + partnerId + "\nStart typing...";
+        alert("Connected! You can now send messages.");
     }
 
+    // --- SEND MESSAGE (FIXED) ---
     function sendMessage() {
         if(!partnerId) { alert("Please connect to a partner ID first."); return; }
         
-        const msgInput = document.getElementById("messageInput");
-        const msg = msgInput.value;
+        const input = document.getElementById("messageInput");
+        const msg = input.value;
         if(!msg) return;
 
-        // 1. Get Partner's Public Key from Firebase
+        // Fetch Partner's Public Key
         db.ref("users/" + partnerId + "/publicKey").once("value").then(snapshot => {
             if (!snapshot.exists()) {
-                alert("Partner ID not found!");
+                alert("Partner ID invalid or offline.");
                 return;
             }
 
-            const partnerPubKeyBase64 = snapshot.val();
-            const partnerPubKey = nacl.util.decodeBase64(partnerPubKeyBase64);
-            
-            // 2. Generate a One-Time Nonce
+            const partnerPubKey = nacl.util.decodeBase64(snapshot.val());
             const nonce = nacl.randomBytes(24);
             
-            // 3. Encrypt the message
-            // box(message, nonce, receiverPublicKey, senderPrivateKey)
+            // Encrypt
             const encrypted = nacl.box(
                 nacl.util.decodeUTF8(msg), 
                 nonce, 
@@ -209,7 +249,7 @@
                 privateKey
             );
 
-            // 4. Send to Firebase
+            // Send to DB
             const msgData = {
                 sender: myId,
                 senderName: username,
@@ -220,53 +260,53 @@
 
             db.ref("messages/" + partnerId).push(msgData);
             
-            // UI Update: Show my own message
-            const chatBox = document.getElementById("chatBox");
-            chatBox.value += "Me: " + msg + "\n";
-            chatBox.scrollTop = chatBox.scrollHeight;
-            msgInput.value = "";
+            // Show my own message in chatbox
+            appendMessage("Me", msg);
+            input.value = "";
         });
     }
 
+    // --- RECEIVE MESSAGES (FIXED) ---
     function listenMessages() {
-        // Listen to node: messages/MY_ID
         db.ref("messages/" + myId).on("child_added", snapshot => {
             const data = snapshot.val();
             
-            // FIX: We must fetch the SENDER'S public key to decrypt
+            // Fetch Sender's Public Key to Verify/Decrypt
             db.ref("users/" + data.sender + "/publicKey").once("value").then(userSnap => {
-                if(!userSnap.exists()) {
-                    console.error("Unknown sender");
-                    return;
-                }
+                if(!userSnap.exists()) return;
 
                 const senderPubKey = nacl.util.decodeBase64(userSnap.val());
                 const nonce = nacl.util.decodeBase64(data.nonce);
-                const messageHelper = nacl.util.decodeBase64(data.message);
+                const cipherText = nacl.util.decodeBase64(data.message);
 
                 try {
-                    // Decrypt: box.open(cipher, nonce, senderPublicKey, receiverPrivateKey)
-                    const decrypted = nacl.box.open(
-                        messageHelper,
-                        nonce,
-                        senderPubKey,
-                        privateKey
-                    );
-
+                    const decrypted = nacl.box.open(cipherText, nonce, senderPubKey, privateKey);
+                    
                     if (decrypted) {
                         const msgText = nacl.util.encodeUTF8(decrypted);
-                        const chatBox = document.getElementById("chatBox");
-                        chatBox.value += (data.senderName || "Partner") + ": " + msgText + "\n";
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    } else {
-                        console.error("Decryption failed - signature mismatch or wrong key");
+                        appendMessage(data.senderName, msgText);
+                        
+                        // Auto-set partner ID if not set (optional convenience)
+                        if(!partnerId) {
+                            partnerId = data.sender;
+                            document.getElementById("partnerId").value = partnerId;
+                            document.getElementById("connectionArea").style.display = "none";
+                        }
                     }
                 } catch(e) {
-                    console.error("Error decrypting:", e);
+                    console.error("Decryption error:", e);
                 }
             });
         });
     }
+
+    // Helper to add text to textarea
+    function appendMessage(sender, text) {
+        const chatBox = document.getElementById("chatBox");
+        chatBox.value += sender + ": " + text + "\n";
+        chatBox.scrollTop = chatBox.scrollHeight; // Auto scroll to bottom
+    }
+
 </script>
 </body>
 </html>
